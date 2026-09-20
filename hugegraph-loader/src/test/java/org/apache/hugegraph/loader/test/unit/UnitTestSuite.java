@@ -24,6 +24,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
         LineTest.class,
         DateUtilTest.class,
+        DataTypeUtilTest.class,
         MappingConverterTest.class,
         LoadProgressTest.class,
         RangesTimerTest.class

@@ -329,8 +329,10 @@ public class BatchUpdateElementApiTest extends BaseApiTest {
         Assert.assertThrows(ServerException.class, () -> {
             vertexAPI.update(req5);
         }, e -> {
+            // The new value is a String before, a Date after, the server
+            // started normalising batch values to the property's data type
             String expect = "Property type must be Set or List for " +
-                            "strategy INTERSECTION, but got type Date, String";
+                            "strategy INTERSECTION, but got type Date, ";
             Assert.assertContains(expect, e.getMessage());
         });
 
@@ -621,8 +623,10 @@ public class BatchUpdateElementApiTest extends BaseApiTest {
         Assert.assertThrows(ServerException.class, () -> {
             edgeAPI.update(req5);
         }, e -> {
+            // The new value is a String before, a Date after, the server
+            // started normalising batch values to the property's data type
             String expect = "Property type must be Set or List for " +
-                            "strategy INTERSECTION, but got type Date, String";
+                            "strategy INTERSECTION, but got type Date, ";
             Assert.assertContains(expect, e.getMessage());
         });
 

@@ -112,6 +112,8 @@ public class PropertyKey extends SchemaElement {
 
         Builder asLong();
 
+        Builder asDecimal();
+
         Builder cardinality(Cardinality cardinality);
 
         Builder valueSingle();
@@ -263,6 +265,12 @@ public class PropertyKey extends SchemaElement {
         @Override
         public Builder asLong() {
             this.propertyKey.dataType = DataType.LONG;
+            return this;
+        }
+
+        @Override
+        public Builder asDecimal() {
+            this.propertyKey.dataType = DataType.DECIMAL;
             return this;
         }
 

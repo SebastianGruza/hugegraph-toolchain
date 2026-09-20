@@ -20,6 +20,7 @@ package org.apache.hugegraph.serializer.direct.util;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.UUID;
 
@@ -749,6 +750,13 @@ public final class BytesBuffer extends OutputStream {
                 // Generally writeVLong(uuid) can't save space
                 this.writeLong(uuid.getMostSignificantBits());
                 this.writeLong(uuid.getLeastSignificantBits());
+                break;
+            case DECIMAL:
+                // Same layout as the server: unscaled two's-complement
+                // bytes followed by the scale, exact for any precision
+                BigDecimal decimal = dataType.valueToDecimal(value);
+                this.writeBytes(decimal.unscaledValue().toByteArray());
+                this.writeVInt(decimal.scale());
                 break;
             default:
                 //this.writeBytes(KryoUtil.toKryoWithType(value));

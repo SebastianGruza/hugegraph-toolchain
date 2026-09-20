@@ -17,6 +17,7 @@
 
 package org.apache.hugegraph.client;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 import org.apache.hugegraph.exception.ServerException;
@@ -25,9 +26,11 @@ import org.apache.hugegraph.rest.ClientException;
 import org.apache.hugegraph.rest.RestClientConfig;
 import org.apache.hugegraph.rest.RestHeaders;
 import org.apache.hugegraph.rest.RestResult;
+import org.apache.hugegraph.serializer.BigDecimalSerializer;
 import org.apache.hugegraph.serializer.PathDeserializer;
 import org.apache.hugegraph.structure.graph.Path;
 import org.apache.hugegraph.util.E;
+import org.apache.hugegraph.util.JsonUtilCommon;
 import org.apache.hugegraph.util.VersionUtil;
 import org.apache.hugegraph.util.VersionUtil.Version;
 
@@ -49,6 +52,11 @@ public class RestClient extends AbstractRestClient {
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Path.class, new PathDeserializer());
         RestResult.registerModule(module);
+
+        // Request bodies: a decimal goes as a plain string, see JsonUtil
+        SimpleModule decimals = new SimpleModule();
+        decimals.addSerializer(BigDecimal.class, new BigDecimalSerializer());
+        JsonUtilCommon.registerModule(decimals);
     }
 
     public RestClient(String url, String username, String password, int timeout) {

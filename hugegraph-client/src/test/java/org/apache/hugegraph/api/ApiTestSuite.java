@@ -59,6 +59,7 @@ import org.junit.runners.Suite;
         VertexApiTest.class,
         EdgeApiTest.class,
         BatchUpdateElementApiTest.class,
+        DecimalPropertyApiTest.class,
 
         GremlinApiTest.class,
         VariablesApiTest.class,

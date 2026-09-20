@@ -17,6 +17,7 @@
 
 package org.apache.hugegraph.spark.connector.utils;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Set;
 import java.util.UUID;
@@ -74,6 +75,8 @@ public final class DataTypeUtils {
             return parseDate(key, value, dateFormat, timeZone);
         } else if (dataType.isUUID()) {
             return parseUUID(key, value);
+        } else if (dataType.isDecimal()) {
+            return parseDecimal(key, value);
         } else if (dataType.isText()) {
             if (!(rawValue instanceof String)) {
                 value = rawValue.toString();
@@ -96,6 +99,21 @@ public final class DataTypeUtils {
         throw new IllegalArgumentException(String.format("The value(key='%s') must can be casted" +
                                                          " to Long, but got '%s'(%s)", key,
                                                          rawValue, rawValue.getClass().getName()));
+    }
+
+    public static BigDecimal parseDecimal(String key, Object rawValue) {
+        BigDecimal decimal;
+        try {
+            decimal = DataType.DECIMAL.valueToDecimal(rawValue);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(String.format(
+                      "The value(key='%s') '%s'(%s) can't be casted to Decimal",
+                      key, rawValue, rawValue.getClass()), e);
+        }
+        E.checkArgument(decimal != null,
+                        "The value(key='%s') '%s'(%s) can't be casted to Decimal",
+                        key, rawValue, rawValue.getClass());
+        return decimal;
     }
 
     public static UUID parseUUID(String key, Object rawValue) {

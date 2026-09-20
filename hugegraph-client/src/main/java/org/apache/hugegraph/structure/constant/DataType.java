@@ -18,6 +18,8 @@
 package org.apache.hugegraph.structure.constant;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 import java.util.UUID;
 
@@ -33,7 +35,12 @@ public enum DataType {
     TEXT(8, "text", String.class),
     BLOB(9, "blob", byte[].class),
     DATE(10, "date", Date.class),
-    UUID(11, "uuid", UUID.class);
+    UUID(11, "uuid", UUID.class),
+    /*
+     * Arbitrary-precision decimal (java.math.BigDecimal), stored exactly by
+     * the server; sent and received as a plain decimal string in JSON
+     */
+    DECIMAL(12, "decimal", BigDecimal.class);
 
     private final byte code;
     private final String name;
@@ -69,6 +76,40 @@ public enum DataType {
 
     public boolean isUUID() {
         return this == DataType.UUID;
+    }
+
+    public boolean isDecimal() {
+        return this == DataType.DECIMAL;
+    }
+
+    /**
+     * Convert a value to BigDecimal the same way the server does: BigDecimal
+     * as is, integral numbers exactly, any other Number and a decimal string
+     * through their decimal representation.
+     *
+     * @return the BigDecimal, or null if the value can't be a decimal
+     * @throws IllegalArgumentException if the string is not a decimal number
+     */
+    public <V> BigDecimal valueToDecimal(V value) {
+        if (!this.isDecimal()) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        } else if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
+        } else if (value instanceof Byte || value instanceof Short ||
+                   value instanceof Integer || value instanceof Long) {
+            return BigDecimal.valueOf(((Number) value).longValue());
+        } else if (!(value instanceof Number) && !(value instanceof String)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(String.format(
+                      "Can't read '%s' as decimal", value));
+        }
     }
 
     public boolean isBoolean() {

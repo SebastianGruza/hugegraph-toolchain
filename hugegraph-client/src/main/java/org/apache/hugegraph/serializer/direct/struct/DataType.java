@@ -17,6 +17,8 @@
 
 package org.apache.hugegraph.serializer.direct.struct;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 import java.util.UUID;
 
@@ -42,17 +44,19 @@ public enum DataType {
     TEXT(8, "text", String.class),
     //BLOB(9, "blob", Blob.class),
     DATE(10, "date", Date.class),
-    UUID(11, "uuid", UUID.class);
+    UUID(11, "uuid", UUID.class),
+    DECIMAL(12, "decimal", BigDecimal.class);
 
     private final byte code;
     private final String name;
     private final Class<?> clazz;
 
+    // Must be initialized before the static block that fills it
+    static Table<Class<?>, Byte, DataType> TABLE = HashBasedTable.create();
+
     static {
         register(DataType.class);
     }
-
-    static Table<Class<?>, Byte, DataType> TABLE = HashBasedTable.create();
 
     static void register(Class<? extends DataType> clazz) {
         Object enums;
@@ -125,6 +129,10 @@ public enum DataType {
         return this == DataType.UUID;
     }
 
+    public boolean isDecimal() {
+        return this == DataType.DECIMAL;
+    }
+
     public <V> Number valueToNumber(V value) {
         if (!(this.isNumber() && value instanceof Number)) {
             return null;
@@ -190,6 +198,35 @@ public enum DataType {
             return StringEncoding.uuid((String) value);
         }
         return null;
+    }
+
+    /**
+     * Convert a value to BigDecimal the same way the server does: BigDecimal
+     * as is, integral numbers exactly, any other Number and a decimal string
+     * through their decimal representation.
+     *
+     * @return the BigDecimal, or null if the value can't be a decimal
+     */
+    public <V> BigDecimal valueToDecimal(V value) {
+        if (!this.isDecimal()) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        } else if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
+        } else if (value instanceof Byte || value instanceof Short ||
+                   value instanceof Integer || value instanceof Long) {
+            return BigDecimal.valueOf(((Number) value).longValue());
+        } else if (!(value instanceof Number) && !(value instanceof String)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(String.format(
+                      "Can't read '%s' as decimal", value));
+        }
     }
 
     public static DataType fromClass(Class<?> clazz) {

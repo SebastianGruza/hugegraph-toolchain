@@ -31,6 +31,7 @@ import org.junit.runners.Suite;
         AuthApiPathTest.class,
         BatchElementRequestTest.class,
         PropertyKeyTest.class,
+        DecimalDataTypeTest.class,
         IndexLabelTest.class,
         GraphSpaceAPITest.class,
         ManagerAPITest.class,

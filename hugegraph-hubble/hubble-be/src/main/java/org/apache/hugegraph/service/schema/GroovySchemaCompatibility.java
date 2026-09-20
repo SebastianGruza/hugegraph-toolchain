@@ -234,6 +234,7 @@ public final class GroovySchemaCompatibility {
             case DOUBLE: return ".asDouble()";
             case FLOAT: return ".asFloat()";
             case LONG: return ".asLong()";
+            case DECIMAL: return ".asDecimal()";
             default:
                 return ".dataType(org.apache.hugegraph.structure.constant." +
                        "DataType." + type.name() + ")";

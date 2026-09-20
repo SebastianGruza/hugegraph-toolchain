@@ -18,17 +18,31 @@
 package org.apache.hugegraph.util;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 
 import org.apache.hugegraph.rest.SerializeException;
+import org.apache.hugegraph.serializer.BigDecimalSerializer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
 public final class JsonUtil {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    static {
+        /*
+         * A DECIMAL property value travels as a plain string ("1.10"): a
+         * JSON number is read as a double on the other side. The same
+         * serializer is registered for request bodies in RestClient.
+         */
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(BigDecimal.class, new BigDecimalSerializer());
+        MAPPER.registerModule(module);
+    }
 
     public static void registerModule(Module module) {
         MAPPER.registerModule(module);

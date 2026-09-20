@@ -17,6 +17,7 @@
 
 package org.apache.hugegraph.loader.util;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -200,6 +201,8 @@ public final class DataTypeUtil {
             }
         } else if (dataType.isUUID()) {
             return parseUUID(key, value);
+        } else if (dataType.isDecimal()) {
+            return parseDecimal(key, value);
         } else if (dataType.isText()) {
             if (value instanceof Number) {
                 return value.toString();
@@ -328,6 +331,21 @@ public final class DataTypeUtil {
         }
     }
 
+    private static BigDecimal parseDecimal(String key, Object rawValue) {
+        BigDecimal decimal;
+        try {
+            decimal = DataType.DECIMAL.valueToDecimal(rawValue);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(String.format(
+                      "Failed to convert value(key='%s') '%s'(%s) to Decimal",
+                      key, rawValue, rawValue.getClass()), e);
+        }
+        E.checkArgument(decimal != null,
+                        "Failed to convert value(key='%s') '%s'(%s) to Decimal",
+                        key, rawValue, rawValue.getClass());
+        return decimal;
+    }
+
     private static long parseLong(String rawValue) {
         if (rawValue.startsWith("-")) {
             return Long.parseLong(rawValue);
@@ -403,6 +421,9 @@ public final class DataTypeUtil {
      */
     private static boolean checkDataType(String key, Object value,
                                          DataType dataType) {
+        if (dataType.isDecimal()) {
+            return value instanceof BigDecimal;
+        }
         if (value instanceof Number) {
             return parseNumber(key, value, dataType) != null;
         }
