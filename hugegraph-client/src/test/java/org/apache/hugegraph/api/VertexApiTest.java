@@ -17,6 +17,7 @@
 
 package org.apache.hugegraph.api;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -59,6 +60,26 @@ public class VertexApiTest extends BaseApiTest {
     @After
     public void teardown() {
         vertexAPI.list(-1).results().forEach(v -> vertexAPI.delete(v.id()));
+    }
+
+    @Test
+    public void testCreateWithBigDecimalOnDoubleKey() {
+        // A BigDecimal sent to a DOUBLE key is a JSON number, so the server
+        // narrows it to a double as it does for any numeric literal
+        SchemaManager schema = schema();
+        schema.propertyKey("weight").asDouble().ifNotExist().create();
+        schema.vertexLabel("scale").properties("name", "weight")
+              .primaryKeys("name").nullableKeys("weight")
+              .ifNotExist().create();
+
+        Vertex vertex = new Vertex("scale");
+        vertex.property("name", "kg");
+        vertex.property("weight", new BigDecimal("1.5"));
+        vertex = vertexAPI.create(vertex);
+        Assert.assertEquals(1.5, vertex.property("weight"));
+
+        vertex = vertexAPI.get(vertex.id());
+        Assert.assertEquals(1.5, vertex.property("weight"));
     }
 
     @Test

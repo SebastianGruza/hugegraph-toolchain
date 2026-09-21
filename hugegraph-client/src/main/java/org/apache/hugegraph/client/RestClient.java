@@ -53,7 +53,7 @@ public class RestClient extends AbstractRestClient {
         module.addDeserializer(Path.class, new PathDeserializer());
         RestResult.registerModule(module);
 
-        // Request bodies: a decimal goes as a plain string, see JsonUtil
+        // Request bodies: a BigDecimal goes as a plain number, see JsonUtil
         SimpleModule decimals = new SimpleModule();
         decimals.addSerializer(BigDecimal.class, new BigDecimalSerializer());
         JsonUtilCommon.registerModule(decimals);

@@ -226,10 +226,23 @@ public final class DataTypeUtil {
                                            DataType dataType,
                                            Cardinality cardinality,
                                            InputSource source) {
-        // JSON file should not parse again
-        if (values instanceof Collection &&
-            checkCollectionDataType(key, (Collection<?>) values, dataType)) {
-            return values;
+        if (values instanceof Collection) {
+            // JSON file should not parse again
+            if (checkCollectionDataType(key, (Collection<?>) values, dataType)) {
+                return values;
+            }
+            // Elements of another type (e.g. a JSON integer literal in a
+            // decimal list) are converted one by one
+            Collection<Object> converted = cardinality == Cardinality.LIST ?
+                                           InsertionOrderUtil.newList() :
+                                           InsertionOrderUtil.newSet();
+            for (Object value : (Collection<?>) values) {
+                converted.add(parseSingleValue(key, value, dataType, source));
+            }
+            E.checkArgument(checkCollectionDataType(key, converted, dataType),
+                            "Not all collection elems %s match with data type %s",
+                            converted, dataType);
+            return converted;
         }
 
         E.checkState(values instanceof String,

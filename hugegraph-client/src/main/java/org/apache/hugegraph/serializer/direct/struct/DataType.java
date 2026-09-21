@@ -200,10 +200,20 @@ public enum DataType {
         return null;
     }
 
+    /*
+     * Bounds for a DECIMAL value, the same as the server applies: at most
+     * DECIMAL_MAX_PRECISION significant digits and an absolute scale of at
+     * most DECIMAL_MAX_SCALE. A value such as "1E+999999999" costs a few bytes
+     * to store and a billion characters on every read, and the direct loaders
+     * write bytes into storage without the server's check.
+     */
+    public static final int DECIMAL_MAX_PRECISION = 128;
+    public static final int DECIMAL_MAX_SCALE = 128;
+
     /**
      * Convert a value to BigDecimal the same way the server does: BigDecimal
      * as is, integral numbers exactly, any other Number and a decimal string
-     * through their decimal representation.
+     * through their decimal representation, then checked against the bounds.
      *
      * @return the BigDecimal, or null if the value can't be a decimal
      */
@@ -211,22 +221,38 @@ public enum DataType {
         if (!this.isDecimal()) {
             return null;
         }
+        BigDecimal decimal;
         if (value instanceof BigDecimal) {
-            return (BigDecimal) value;
+            decimal = (BigDecimal) value;
         } else if (value instanceof BigInteger) {
-            return new BigDecimal((BigInteger) value);
+            decimal = new BigDecimal((BigInteger) value);
         } else if (value instanceof Byte || value instanceof Short ||
                    value instanceof Integer || value instanceof Long) {
-            return BigDecimal.valueOf(((Number) value).longValue());
+            decimal = BigDecimal.valueOf(((Number) value).longValue());
         } else if (!(value instanceof Number) && !(value instanceof String)) {
             return null;
+        } else {
+            try {
+                decimal = new BigDecimal(value.toString().trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(String.format(
+                          "Can't read '%s' as decimal", value));
+            }
         }
-        try {
-            return new BigDecimal(value.toString().trim());
-        } catch (NumberFormatException e) {
+        return checkDecimalBounds(decimal);
+    }
+
+    public static BigDecimal checkDecimalBounds(BigDecimal decimal) {
+        int scale = Math.abs(decimal.scale());
+        int precision = decimal.precision();
+        if (precision > DECIMAL_MAX_PRECISION || scale > DECIMAL_MAX_SCALE) {
             throw new IllegalArgumentException(String.format(
-                      "Can't read '%s' as decimal", value));
+                      "Decimal value out of bounds: precision %d, scale %d " +
+                      "(at most %d significant digits and a scale of at most " +
+                      "%d in either direction)", precision, decimal.scale(),
+                      DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE));
         }
+        return decimal;
     }
 
     public static DataType fromClass(Class<?> clazz) {

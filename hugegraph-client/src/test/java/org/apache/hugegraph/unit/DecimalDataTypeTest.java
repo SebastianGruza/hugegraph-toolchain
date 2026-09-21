@@ -19,8 +19,6 @@ package org.apache.hugegraph.unit;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Map;
-
 import org.apache.hugegraph.serializer.direct.util.BytesBuffer;
 import org.apache.hugegraph.structure.constant.DataType;
 import org.apache.hugegraph.structure.graph.Vertex;
@@ -28,8 +26,6 @@ import org.apache.hugegraph.structure.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.util.JsonUtil;
 import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
 
 public class DecimalDataTypeTest extends BaseUnitTest {
 
@@ -55,33 +51,63 @@ public class DecimalDataTypeTest extends BaseUnitTest {
     }
 
     @Test
-    public void testDecimalIsSerializedAsPlainString() {
-        // Never a JSON number (would be read as a double), never E-notation
-        Assert.assertEquals("\"1.10\"",
-                            JsonUtil.toJson(new BigDecimal("1.10")));
-        Assert.assertEquals("\"1000\"",
-                            JsonUtil.toJson(new BigDecimal("1E+3")));
-        Assert.assertEquals("\"0.000000000000000001\"",
+    public void testDecimalIsSerializedAsPlainNumber() {
+        // A plain JSON number: every digit, never E-notation, never a string
+        Assert.assertEquals("1.10", JsonUtil.toJson(new BigDecimal("1.10")));
+        Assert.assertEquals("1000", JsonUtil.toJson(new BigDecimal("1E+3")));
+        Assert.assertEquals("0.000000000000000001",
                             JsonUtil.toJson(new BigDecimal("1E-18")));
-        Assert.assertEquals("\"-115792089237316195423570985008687907853" +
-                            "269984665640564039457584007913129639935\"",
-                            JsonUtil.toJson(new BigDecimal(
-                            "-115792089237316195423570985008687907853" +
-                            "269984665640564039457584007913129639935")));
+        String uint256Max = "115792089237316195423570985008687907853" +
+                            "269984665640564039457584007913129639935";
+        Assert.assertEquals("-" + uint256Max,
+                            JsonUtil.toJson(new BigDecimal("-" + uint256Max)));
 
         Vertex vertex = new Vertex("account");
         vertex.id("account:1");
         vertex.property("balance", new BigDecimal("12345678901234567890.10"));
         String json = serialize(vertex);
-        Assert.assertContains("\"balance\":\"12345678901234567890.10\"", json);
+        Assert.assertContains("\"balance\":12345678901234567890.10", json);
 
-        // A value read back from the server is the plain string
-        Vertex copy = deserialize(json, Vertex.class);
-        Map<String, Object> props = ImmutableMap.of(
-                "balance", "12345678901234567890.10");
-        Assert.assertEquals(props, copy.properties());
+        // A DECIMAL value read back from the server is a plain string
+        Vertex copy = deserialize("{\"id\":\"account:1\",\"label\":" +
+                                  "\"account\",\"type\":\"vertex\"," +
+                                  "\"properties\":{\"balance\":" +
+                                  "\"12345678901234567890.10\"}}",
+                                  Vertex.class);
         Assert.assertEquals(new BigDecimal("12345678901234567890.10"),
                             new BigDecimal((String) copy.property("balance")));
+    }
+
+    @Test
+    public void testDecimalBounds() {
+        DataType type = DataType.DECIMAL;
+        // 128 significant digits and scale 128 are the server's limits
+        String digits128 = new String(new char[128]).replace("\0", "7");
+        Assert.assertEquals(new BigDecimal(digits128),
+                            type.valueToDecimal(digits128));
+        Assert.assertEquals(new BigDecimal("1E-128"),
+                            type.valueToDecimal("1E-128"));
+        Assert.assertEquals(new BigDecimal("1E+128"),
+                            type.valueToDecimal("1E+128"));
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            type.valueToDecimal(digits128 + "7");
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            type.valueToDecimal("1E-129");
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            type.valueToDecimal(new BigDecimal("1E+999999999"));
+        });
+        // the direct-serializer copy applies the same bounds before writing
+        org.apache.hugegraph.serializer.direct.struct.DataType direct =
+                org.apache.hugegraph.serializer.direct.struct.DataType.DECIMAL;
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            direct.valueToDecimal("1E+999999999");
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            BytesBuffer.allocate(16).writeProperty(DataType.DECIMAL,
+                                                   new BigDecimal("1E+999999999"));
+        });
     }
 
     @Test

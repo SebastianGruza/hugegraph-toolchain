@@ -20,10 +20,12 @@ package org.apache.hugegraph.loader.test.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hugegraph.loader.source.file.FileSource;
 import org.apache.hugegraph.loader.source.file.ListFormat;
 import org.apache.hugegraph.loader.util.DataTypeUtil;
+import org.apache.hugegraph.loader.util.JsonUtil;
 import org.apache.hugegraph.structure.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.junit.Test;
@@ -85,8 +87,40 @@ public class DataTypeUtilTest {
         List<Object> parsed = ImmutableList.of(new BigDecimal("3.30"));
         Assert.assertEquals(parsed,
                             DataTypeUtil.convert(parsed, amounts, SOURCE));
-        Assert.assertThrows(IllegalStateException.class, () -> {
-            DataTypeUtil.convert(ImmutableList.of(3.3d), amounts, SOURCE);
+        // elements of another type are converted one by one
+        Assert.assertEquals(ImmutableList.of(new BigDecimal("3.3")),
+                            DataTypeUtil.convert(ImmutableList.of(3.3d),
+                                                 amounts, SOURCE));
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            DataTypeUtil.convert(ImmutableList.of("x"), amounts, SOURCE);
         });
+    }
+
+    @Test
+    public void testConvertDecimalFromJsonLine() {
+        // The JSON line parser reads fractions as BigDecimal, so a value
+        // with more digits than a double holds arrives intact, and a list
+        // column comes as a list of decimals
+        PropertyKey amount = decimal("amount");
+        PropertyKey amounts = new PropertyKey.BuilderImpl("amounts", null)
+                                             .asDecimal().valueList().build();
+        PropertyKey weight = new PropertyKey.BuilderImpl("weight", null)
+                                            .asDouble().build();
+        Map<String, Object> line = JsonUtil.convertMap(
+                "{\"amount\": 12345678901234567890.123456789012345678," +
+                " \"amounts\": [1.10, 2, 3E-18], \"weight\": 2.5}",
+                String.class, Object.class);
+        Assert.assertEquals(
+                new BigDecimal("12345678901234567890.123456789012345678"),
+                DataTypeUtil.convert(line.get("amount"), amount, SOURCE));
+        Assert.assertEquals(ImmutableList.of(new BigDecimal("1.10"),
+                                             new BigDecimal("2"),
+                                             new BigDecimal("3E-18")),
+                            DataTypeUtil.convert(line.get("amounts"), amounts,
+                                                 SOURCE));
+        // other numeric keys are narrowed as before
+        Assert.assertEquals(2.5d,
+                            DataTypeUtil.convert(line.get("weight"), weight,
+                                                 SOURCE));
     }
 }

@@ -25,10 +25,12 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Write a BigDecimal as a plain decimal string ("1.10", never "1.1E+2").
- * A JSON number would be parsed as a double on the server side and lose
- * both precision and trailing zeros; a string reaches a DECIMAL property
- * key exactly, which is the point of that data type.
+ * Write a BigDecimal as a plain JSON number ("1.10", never "1.1E+2").
+ * Jackson's default is the scientific form of BigDecimal.toString(); the
+ * plain form carries every digit, so a server that reads fractions as
+ * BigDecimal (apache/hugegraph#3209) stores a DECIMAL value exactly, and a
+ * server that reads them as double behaves as it always did. The value stays
+ * a number, so numeric keys (DOUBLE, FLOAT, LONG, INT) accept it too.
  */
 public class BigDecimalSerializer extends StdSerializer<BigDecimal> {
 
@@ -41,6 +43,6 @@ public class BigDecimalSerializer extends StdSerializer<BigDecimal> {
     @Override
     public void serialize(BigDecimal value, JsonGenerator generator,
                           SerializerProvider provider) throws IOException {
-        generator.writeString(value.toPlainString());
+        generator.writeNumber(value.toPlainString());
     }
 }

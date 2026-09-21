@@ -35,9 +35,9 @@ public final class JsonUtil {
 
     static {
         /*
-         * A DECIMAL property value travels as a plain string ("1.10"): a
-         * JSON number is read as a double on the other side. The same
-         * serializer is registered for request bodies in RestClient.
+         * A BigDecimal travels as a plain JSON number ("1.10", not "1.1E+2")
+         * so that a DECIMAL key receives every digit. The same serializer is
+         * registered for request bodies in RestClient.
          */
         SimpleModule module = new SimpleModule();
         module.addSerializer(BigDecimal.class, new BigDecimalSerializer());

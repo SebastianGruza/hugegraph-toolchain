@@ -39,6 +39,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
@@ -46,6 +47,15 @@ public final class JsonUtil {
 
     private static final Logger LOG = Log.logger(JsonUtil.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    static {
+        /*
+         * Read JSON fraction literals as BigDecimal: a DECIMAL column keeps
+         * every digit (a double would keep 17), the other numeric types are
+         * narrowed by DataTypeUtil as before.
+         */
+        MAPPER.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+    }
 
     static {
         SimpleModule module = new SimpleModule();
