@@ -204,6 +204,12 @@ public final class DataTypeUtil {
         } else if (dataType.isDecimal()) {
             return parseDecimal(key, value);
         } else if (dataType.isText()) {
+            if (value instanceof BigDecimal) {
+                // JSON fractions are parsed as BigDecimal (see JsonUtil);
+                // a TEXT key keeps the string the double path produced
+                // ("1.5", not "1.50"), so existing ids do not change
+                return Double.toString(((BigDecimal) value).doubleValue());
+            }
             if (value instanceof Number) {
                 return value.toString();
             }

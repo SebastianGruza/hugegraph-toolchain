@@ -122,5 +122,19 @@ public class DataTypeUtilTest {
         Assert.assertEquals(2.5d,
                             DataTypeUtil.convert(line.get("weight"), weight,
                                                  SOURCE));
+        // a TEXT key gets the same string as before the BigDecimal parsing
+        PropertyKey label = new PropertyKey.BuilderImpl("label", null)
+                                           .asText().build();
+        Map<String, Object> texts = JsonUtil.convertMap(
+                "{\"a\": 1.50, \"b\": 1e-7, \"c\": 12345678901.0, \"d\": 7}",
+                String.class, Object.class);
+        Assert.assertEquals("1.5",
+                            DataTypeUtil.convert(texts.get("a"), label, SOURCE));
+        Assert.assertEquals("1.0E-7",
+                            DataTypeUtil.convert(texts.get("b"), label, SOURCE));
+        Assert.assertEquals("1.2345678901E10",
+                            DataTypeUtil.convert(texts.get("c"), label, SOURCE));
+        Assert.assertEquals("7",
+                            DataTypeUtil.convert(texts.get("d"), label, SOURCE));
     }
 }

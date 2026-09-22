@@ -38,7 +38,9 @@ public enum DataType {
     UUID(11, "uuid", UUID.class),
     /*
      * Arbitrary-precision decimal (java.math.BigDecimal), stored exactly by
-     * the server; sent and received as a plain decimal string in JSON
+     * the server. On the wire: sent as a plain JSON number
+     * (BigDecimal.toPlainString(), every digit), returned by the server as a
+     * plain decimal string; new BigDecimal(String) restores it exactly
      */
     DECIMAL(12, "decimal", BigDecimal.class);
 
