@@ -99,6 +99,15 @@ public class DataTypeUtilTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             DataTypeUtil.convert(ImmutableList.of("x"), amounts, SOURCE);
         });
+        // an already typed element outside the DECIMAL bounds is rejected
+        // like the same scalar
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            DataTypeUtil.convert(ImmutableList.of(new BigDecimal("1E+129")), amounts, SOURCE);
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            DataTypeUtil.convert(ImmutableList.of(new BigDecimal("1E+129"), new BigDecimal("2")),
+                                 amounts, SOURCE);
+        });
     }
 
     @Test

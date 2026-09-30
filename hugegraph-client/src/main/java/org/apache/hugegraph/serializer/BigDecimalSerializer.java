@@ -20,6 +20,8 @@ package org.apache.hugegraph.serializer;
 import java.io.IOException;
 import java.math.BigDecimal;
 
+import org.apache.hugegraph.structure.constant.DataType;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -43,6 +45,21 @@ public class BigDecimalSerializer extends StdSerializer<BigDecimal> {
     @Override
     public void serialize(BigDecimal value, JsonGenerator generator,
                           SerializerProvider provider) throws IOException {
-        generator.writeNumber(value.toPlainString());
+        generator.writeNumber(exactString(value));
+    }
+
+    /**
+     * The plain form while the value is within the DECIMAL bounds the server
+     * accepts, else the scientific form: still exact and still a JSON number,
+     * but a value such as 1E+999999999 is not expanded into a billion
+     * characters on the client before the server rejects it.
+     */
+    public static String exactString(BigDecimal value) {
+        int scale = value.scale();
+        if (value.precision() <= DataType.DECIMAL_MAX_PRECISION &&
+            scale >= -DataType.DECIMAL_MAX_SCALE && scale <= DataType.DECIMAL_MAX_SCALE) {
+            return value.toPlainString();
+        }
+        return value.toString();
     }
 }

@@ -58,8 +58,16 @@ public class DecimalPropertyApiTest extends BaseApiTest {
         try {
             propertyKeyAPI.create(amount);
         } catch (ServerException e) {
-            Assume.assumeTrue("The server has no DECIMAL data type: " +
-                              e.getMessage(), false);
+            // A server without the type rejects the enum value while
+            // deserializing the request; any other failure is a real one
+            String message = String.valueOf(e.getMessage());
+            boolean noDecimalType = message.contains("DataType") &&
+                                    message.contains("\"DECIMAL\"") &&
+                                    message.contains("not one of the values accepted");
+            if (!noDecimalType) {
+                throw e;
+            }
+            Assume.assumeTrue("The server has no DECIMAL data type: " + message, false);
         }
         propertyKeyAPI.create(new PropertyKey.BuilderImpl("name", null)
                                              .asText().build());

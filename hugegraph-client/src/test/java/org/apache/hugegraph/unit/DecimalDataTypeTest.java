@@ -19,6 +19,7 @@ package org.apache.hugegraph.unit;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import org.apache.hugegraph.serializer.BigDecimalSerializer;
 import org.apache.hugegraph.serializer.direct.util.BytesBuffer;
 import org.apache.hugegraph.structure.constant.DataType;
 import org.apache.hugegraph.structure.graph.Vertex;
@@ -26,6 +27,8 @@ import org.apache.hugegraph.structure.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.apache.hugegraph.util.JsonUtil;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 public class DecimalDataTypeTest extends BaseUnitTest {
 
@@ -108,6 +111,34 @@ public class DecimalDataTypeTest extends BaseUnitTest {
             BytesBuffer.allocate(16).writeProperty(DataType.DECIMAL,
                                                    new BigDecimal("1E+999999999"));
         });
+        // Math.abs(Integer.MIN_VALUE) stays negative: the scale is compared directly
+        BigDecimal minScale = new BigDecimal(BigInteger.ONE, Integer.MIN_VALUE);
+        BigDecimal maxScale = new BigDecimal(BigInteger.ONE, Integer.MAX_VALUE);
+        for (BigDecimal extreme : new BigDecimal[]{minScale, maxScale}) {
+            Assert.assertThrows(IllegalArgumentException.class, () -> {
+                type.valueToDecimal(extreme);
+            });
+            Assert.assertThrows(IllegalArgumentException.class, () -> {
+                direct.valueToDecimal(extreme);
+            });
+            Assert.assertThrows(IllegalArgumentException.class, () -> {
+                BytesBuffer.allocate(16).writeProperty(DataType.DECIMAL, extreme);
+            });
+        }
+    }
+
+    @Test
+    public void testSerializerDoesNotExpandOutOfBoundsValues() {
+        // within the bounds: plain form, every digit
+        Assert.assertEquals("1000", BigDecimalSerializer.exactString(new BigDecimal("1E+3")));
+        Assert.assertEquals("0." + new String(new char[127]).replace("\0", "0") + "1",
+                            BigDecimalSerializer.exactString(new BigDecimal("1E-128")));
+        // beyond them: the scientific form, exact but not expanded on the client
+        Assert.assertEquals("1E+999999999",
+                            BigDecimalSerializer.exactString(new BigDecimal("1E+999999999")));
+        Assert.assertEquals("1E-129", BigDecimalSerializer.exactString(new BigDecimal("1E-129")));
+        Assert.assertEquals("{\"v\":1E+999999999}",
+                            JsonUtil.toJson(ImmutableMap.of("v", new BigDecimal("1E+999999999"))));
     }
 
     @Test

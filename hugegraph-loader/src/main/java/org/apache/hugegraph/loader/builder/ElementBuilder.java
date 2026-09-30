@@ -22,6 +22,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -212,7 +214,42 @@ public abstract class ElementBuilder<GE extends GraphElement> {
         }
 
         return !nullableKeys.contains(mappedKey) ||
-               !nullValues.contains(fieldValue);
+               !isNullValue(nullValues, fieldValue);
+    }
+
+    /**
+     * Numbers are matched by value: JSON rows and the mapping's null_values
+     * are both parsed as BigDecimal now, whose equals() is scale-sensitive
+     * (1.0 vs 1.00); before, both were Double and matched.
+     */
+    public static boolean isNullValue(Set<Object> nullValues, Object fieldValue) {
+        if (nullValues.contains(fieldValue)) {
+            return true;
+        }
+        if (!(fieldValue instanceof Number)) {
+            return false;
+        }
+        BigDecimal value = toBigDecimal((Number) fieldValue);
+        for (Object nullValue : nullValues) {
+            if (nullValue instanceof Number &&
+                value.compareTo(toBigDecimal((Number) nullValue)) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static BigDecimal toBigDecimal(Number number) {
+        if (number instanceof BigDecimal) {
+            return (BigDecimal) number;
+        }
+        if (number instanceof BigInteger) {
+            return new BigDecimal((BigInteger) number);
+        }
+        if (number instanceof Double || number instanceof Float) {
+            return new BigDecimal(number.toString());
+        }
+        return BigDecimal.valueOf(number.longValue());
     }
 
     protected void addProperty(GraphElement element, String key, Object value) {

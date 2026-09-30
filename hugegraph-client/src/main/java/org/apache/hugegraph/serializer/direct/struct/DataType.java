@@ -243,9 +243,11 @@ public enum DataType {
     }
 
     public static BigDecimal checkDecimalBounds(BigDecimal decimal) {
-        int scale = Math.abs(decimal.scale());
+        // Compare the scale directly: Math.abs(Integer.MIN_VALUE) stays negative
+        int scale = decimal.scale();
         int precision = decimal.precision();
-        if (precision > DECIMAL_MAX_PRECISION || scale > DECIMAL_MAX_SCALE) {
+        if (precision > DECIMAL_MAX_PRECISION ||
+            scale < -DECIMAL_MAX_SCALE || scale > DECIMAL_MAX_SCALE) {
             throw new IllegalArgumentException(String.format(
                       "Decimal value out of bounds: precision %d, scale %d " +
                       "(at most %d significant digits and a scale of at most " +

@@ -363,6 +363,15 @@ public final class DataTypeUtil {
         return false;
     }
 
+    private static boolean withinDecimalBounds(BigDecimal decimal) {
+        try {
+            DataType.checkDecimalBounds(decimal);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private static BigDecimal parseDecimal(String key, Object rawValue) {
         BigDecimal decimal;
         try {
@@ -454,7 +463,9 @@ public final class DataTypeUtil {
     private static boolean checkDataType(String key, Object value,
                                          DataType dataType) {
         if (dataType.isDecimal()) {
-            return value instanceof BigDecimal;
+            // Only a BigDecimal within the DECIMAL bounds is already typed;
+            // anything else goes through parseDecimal, which rejects it
+            return value instanceof BigDecimal && withinDecimalBounds((BigDecimal) value);
         }
         if (value instanceof Number) {
             return parseNumber(key, value, dataType) != null;
