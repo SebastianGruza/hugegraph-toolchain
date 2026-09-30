@@ -22,8 +22,10 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.hugegraph.loader.source.file.FileFormat;
 import org.apache.hugegraph.loader.source.file.FileSource;
 import org.apache.hugegraph.loader.source.file.ListFormat;
+import org.apache.hugegraph.loader.source.jdbc.JDBCSource;
 import org.apache.hugegraph.loader.util.DataTypeUtil;
 import org.apache.hugegraph.loader.util.JsonUtil;
 import org.apache.hugegraph.structure.schema.PropertyKey;
@@ -35,9 +37,12 @@ import com.google.common.collect.ImmutableList;
 public class DataTypeUtilTest {
 
     private static final FileSource SOURCE = new FileSource();
+    private static final FileSource JSON_SOURCE = new FileSource();
+    private static final JDBCSource JDBC_SOURCE = new JDBCSource();
 
     static {
         SOURCE.listFormat(new ListFormat("", "", ","));
+        JSON_SOURCE.format(FileFormat.JSON);
     }
 
     private static PropertyKey decimal(String name) {
@@ -129,12 +134,35 @@ public class DataTypeUtilTest {
                 "{\"a\": 1.50, \"b\": 1e-7, \"c\": 12345678901.0, \"d\": 7}",
                 String.class, Object.class);
         Assert.assertEquals("1.5",
-                            DataTypeUtil.convert(texts.get("a"), label, SOURCE));
+                            DataTypeUtil.convert(texts.get("a"), label, JSON_SOURCE));
         Assert.assertEquals("1.0E-7",
-                            DataTypeUtil.convert(texts.get("b"), label, SOURCE));
+                            DataTypeUtil.convert(texts.get("b"), label, JSON_SOURCE));
         Assert.assertEquals("1.2345678901E10",
-                            DataTypeUtil.convert(texts.get("c"), label, SOURCE));
+                            DataTypeUtil.convert(texts.get("c"), label, JSON_SOURCE));
         Assert.assertEquals("7",
-                            DataTypeUtil.convert(texts.get("d"), label, SOURCE));
+                            DataTypeUtil.convert(texts.get("d"), label, JSON_SOURCE));
+    }
+
+    @Test
+    public void testConvertJdbcDecimalToTextKeepsItsText() {
+        // A BigDecimal from JDBC (DECIMAL/NUMERIC, Oracle NUMBER) is not a
+        // parsed JSON fraction: a TEXT key stores its own text, as before
+        PropertyKey label = new PropertyKey.BuilderImpl("label", null)
+                                           .asText().build();
+        Assert.assertEquals("12.50",
+                            DataTypeUtil.convert(new BigDecimal("12.50"), label,
+                                                 JDBC_SOURCE));
+        Assert.assertEquals("12345",
+                            DataTypeUtil.convert(new BigDecimal("12345"), label,
+                                                 JDBC_SOURCE));
+        Assert.assertEquals("12345678901234567890.12",
+                            DataTypeUtil.convert(
+                                    new BigDecimal("12345678901234567890.12"),
+                                    label, JDBC_SOURCE));
+        // and a DECIMAL key keeps it exact from either source
+        Assert.assertEquals(new BigDecimal("12345678901234567890.12"),
+                            DataTypeUtil.convert(
+                                    new BigDecimal("12345678901234567890.12"),
+                                    decimal("amount"), JDBC_SOURCE));
     }
 }

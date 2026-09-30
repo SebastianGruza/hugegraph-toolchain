@@ -33,6 +33,7 @@ import org.apache.hugegraph.util.ReflectionUtil;
 import org.apache.hugegraph.loader.constant.Constants;
 import org.apache.hugegraph.loader.source.AbstractSource;
 import org.apache.hugegraph.loader.source.InputSource;
+import org.apache.hugegraph.loader.source.file.FileFormat;
 import org.apache.hugegraph.loader.source.file.FileSource;
 import org.apache.hugegraph.loader.source.file.ListFormat;
 import org.apache.hugegraph.loader.source.hdfs.HDFSSource;
@@ -204,10 +205,12 @@ public final class DataTypeUtil {
         } else if (dataType.isDecimal()) {
             return parseDecimal(key, value);
         } else if (dataType.isText()) {
-            if (value instanceof BigDecimal) {
+            if (value instanceof BigDecimal && fromJsonParser(source)) {
                 // JSON fractions are parsed as BigDecimal (see JsonUtil);
                 // a TEXT key keeps the string the double path produced
-                // ("1.5", not "1.50"), so existing ids do not change
+                // ("1.5", not "1.50"), so existing ids do not change.
+                // A BigDecimal from any other source (JDBC DECIMAL/NUMERIC)
+                // keeps its own text, as before
                 return Double.toString(((BigDecimal) value).doubleValue());
             }
             if (value instanceof Number) {
@@ -348,6 +351,16 @@ public final class DataTypeUtil {
                     "Failed to convert value(key=%s) '%s'(%s) to Number",
                     key, value, value.getClass()), e);
         }
+    }
+
+    private static boolean fromJsonParser(InputSource source) {
+        if (source instanceof FileSource) {
+            return ((FileSource) source).format() == FileFormat.JSON;
+        }
+        if (source instanceof KafkaSource) {
+            return ((KafkaSource) source).getFormat() == FileFormat.JSON;
+        }
+        return false;
     }
 
     private static BigDecimal parseDecimal(String key, Object rawValue) {
