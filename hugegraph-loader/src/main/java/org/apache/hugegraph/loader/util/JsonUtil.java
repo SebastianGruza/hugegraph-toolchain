@@ -61,6 +61,7 @@ public final class JsonUtil {
         SimpleModule module = new SimpleModule();
         module.addDeserializer(InputSource.class, new InputSourceDeser());
         module.addDeserializer(InputProgress.class, new InputProgressDeser());
+        module.addDeserializer(Object.class, new JsonValueDeser());
         registerModule(module);
     }
 

@@ -24,6 +24,9 @@ import java.util.Set;
 import org.apache.hugegraph.loader.builder.ElementBuilder;
 import org.apache.hugegraph.loader.mapping.ElementMapping;
 import org.apache.hugegraph.loader.mapping.VertexMapping;
+import org.apache.hugegraph.loader.source.file.FileFormat;
+import org.apache.hugegraph.loader.source.file.FileSource;
+import org.apache.hugegraph.loader.util.DataTypeUtil;
 import org.apache.hugegraph.loader.util.JsonUtil;
 import org.apache.hugegraph.testutil.Assert;
 import org.junit.Test;
@@ -49,5 +52,28 @@ public class NullValuesTest {
         Assert.assertTrue(ElementBuilder.isNullValue(nullValues, 1.0d));
         Assert.assertFalse(ElementBuilder.isNullValue(nullValues, "1.0"));
         Assert.assertFalse(ElementBuilder.isNullValue(ImmutableSet.of("NULL"), 1L));
+        // a JDBC NaN or infinity is not a null value unless listed itself
+        Assert.assertFalse(ElementBuilder.isNullValue(nullValues, Double.NaN));
+        Assert.assertFalse(ElementBuilder.isNullValue(nullValues, Float.POSITIVE_INFINITY));
+        Assert.assertTrue(ElementBuilder.isNullValue(ImmutableSet.of(Double.NaN), Double.NaN));
+        Assert.assertFalse(ElementBuilder.isNullValue(ImmutableSet.of(Double.NaN), 1.0d));
+    }
+
+    /** A JSON fraction looks up the mapping by the string it always had. */
+    @Test
+    public void testJsonFractionMappingKey() {
+        FileSource json = new FileSource();
+        json.format(FileFormat.JSON);
+        FileSource csv = new FileSource();
+        csv.format(FileFormat.CSV);
+        Map<String, Object> row = JsonUtil.fromJson(
+                "{\"a\":1.00,\"b\":1e-7,\"c\":-0.0,\"d\":7,\"e\":\"1.00\"}", Map.class);
+        Assert.assertEquals("1.0", DataTypeUtil.mappingKey(row.get("a"), json));
+        Assert.assertEquals("1.0E-7", DataTypeUtil.mappingKey(row.get("b"), json));
+        Assert.assertEquals("-0.0", DataTypeUtil.mappingKey(row.get("c"), json));
+        Assert.assertEquals("7", DataTypeUtil.mappingKey(row.get("d"), json));
+        Assert.assertEquals("1.00", DataTypeUtil.mappingKey(row.get("e"), json));
+        // a BigDecimal from any other source keeps its own text
+        Assert.assertEquals("1.00", DataTypeUtil.mappingKey(new BigDecimal("1.00"), csv));
     }
 }

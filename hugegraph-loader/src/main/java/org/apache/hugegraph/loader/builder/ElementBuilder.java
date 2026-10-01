@@ -230,15 +230,22 @@ public abstract class ElementBuilder<GE extends GraphElement> {
             return false;
         }
         BigDecimal value = toBigDecimal((Number) fieldValue);
+        if (value == null) {
+            // NaN or an infinity: equal only to itself, handled by contains()
+            return false;
+        }
         for (Object nullValue : nullValues) {
-            if (nullValue instanceof Number &&
-                value.compareTo(toBigDecimal((Number) nullValue)) == 0) {
-                return true;
+            if (nullValue instanceof Number) {
+                BigDecimal other = toBigDecimal((Number) nullValue);
+                if (other != null && value.compareTo(other) == 0) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
+    /** null for NaN and the infinities, which BigDecimal cannot hold. */
     private static BigDecimal toBigDecimal(Number number) {
         if (number instanceof BigDecimal) {
             return (BigDecimal) number;
@@ -247,6 +254,10 @@ public abstract class ElementBuilder<GE extends GraphElement> {
             return new BigDecimal((BigInteger) number);
         }
         if (number instanceof Double || number instanceof Float) {
+            double d = number.doubleValue();
+            if (Double.isNaN(d) || Double.isInfinite(d)) {
+                return null;
+            }
             return new BigDecimal(number.toString());
         }
         return BigDecimal.valueOf(number.longValue());
@@ -306,7 +317,7 @@ public abstract class ElementBuilder<GE extends GraphElement> {
         if (this.mapping().mappingValues().isEmpty()) {
             return fieldValue;
         }
-        String fieldStrValue = String.valueOf(fieldValue);
+        String fieldStrValue = DataTypeUtil.mappingKey(fieldValue, this.struct.input());
         return this.mapping().mappingValue(fieldName, fieldStrValue,
                                            this.headerCaseSensitive());
     }

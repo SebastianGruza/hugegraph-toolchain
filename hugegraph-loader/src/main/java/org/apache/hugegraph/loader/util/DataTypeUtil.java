@@ -211,7 +211,7 @@ public final class DataTypeUtil {
                 // ("1.5", not "1.50"), so existing ids do not change.
                 // A BigDecimal from any other source (JDBC DECIMAL/NUMERIC)
                 // keeps its own text, as before
-                return Double.toString(((BigDecimal) value).doubleValue());
+                return jsonNumberText((BigDecimal) value);
             }
             if (value instanceof Number) {
                 return value.toString();
@@ -372,7 +372,26 @@ public final class DataTypeUtil {
         }
     }
 
+    /**
+     * The string a JSON fraction had before it was read as BigDecimal: the
+     * shortest double representation ("1.5" for 1.50, "1.0E-7" for 1e-7).
+     * TEXT values and mapping lookups keep the keys they always had.
+     */
+    public static String jsonNumberText(BigDecimal value) {
+        return Double.toString(value.doubleValue());
+    }
+
+    /** The lookup key of a field value in the mapping's value map. */
+    public static String mappingKey(Object fieldValue, InputSource source) {
+        if (fieldValue instanceof BigDecimal && fromJsonParser(source)) {
+            return jsonNumberText((BigDecimal) fieldValue);
+        }
+        return String.valueOf(fieldValue);
+    }
+
     private static BigDecimal parseDecimal(String key, Object rawValue) {
+        E.checkArgument(rawValue != null,
+                        "Failed to convert value(key='%s') null to Decimal", key);
         BigDecimal decimal;
         try {
             decimal = DataType.DECIMAL.valueToDecimal(rawValue);

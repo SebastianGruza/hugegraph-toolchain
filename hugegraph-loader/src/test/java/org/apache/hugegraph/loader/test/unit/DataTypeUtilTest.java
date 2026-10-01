@@ -99,6 +99,13 @@ public class DataTypeUtilTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> {
             DataTypeUtil.convert(ImmutableList.of("x"), amounts, SOURCE);
         });
+        // a null element is a conversion error, not a NullPointerException
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            DataTypeUtil.convert(java.util.Arrays.asList(new BigDecimal("1"), null), amounts,
+                                 SOURCE);
+        }, e -> {
+            Assert.assertContains("null to Decimal", e.getMessage());
+        });
         // an already typed element outside the DECIMAL bounds is rejected
         // like the same scalar
         Assert.assertThrows(IllegalArgumentException.class, () -> {
@@ -150,6 +157,16 @@ public class DataTypeUtilTest {
                             DataTypeUtil.convert(texts.get("c"), label, JSON_SOURCE));
         Assert.assertEquals("7",
                             DataTypeUtil.convert(texts.get("d"), label, JSON_SOURCE));
+        // a negative zero keeps its sign as text (BigDecimal cannot carry
+        // it, so the parser hands it over as a Double) and is a decimal zero
+        Map<String, Object> zero = JsonUtil.convertMap("{\"z\": -0.0, \"p\": 0.0}",
+                                                       String.class, Object.class);
+        Assert.assertEquals("-0.0", DataTypeUtil.convert(zero.get("z"), label, JSON_SOURCE));
+        Assert.assertEquals("0.0", DataTypeUtil.convert(zero.get("p"), label, JSON_SOURCE));
+        Assert.assertEquals(0, new BigDecimal("0").compareTo(
+                (BigDecimal) DataTypeUtil.convert(zero.get("z"), amount, JSON_SOURCE)));
+        Assert.assertEquals(new BigDecimal("0.0"),
+                            DataTypeUtil.convert(zero.get("p"), amount, JSON_SOURCE));
     }
 
     @Test
