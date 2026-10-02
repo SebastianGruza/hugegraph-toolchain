@@ -31,6 +31,7 @@ import org.apache.hugegraph.util.InsertionOrderUtil;
 import org.apache.hugegraph.util.ReflectionUtil;
 
 import org.apache.hugegraph.loader.constant.Constants;
+import org.apache.hugegraph.loader.mapping.ElementMapping;
 import org.apache.hugegraph.loader.source.AbstractSource;
 import org.apache.hugegraph.loader.source.InputSource;
 import org.apache.hugegraph.loader.source.file.FileFormat;
@@ -92,7 +93,7 @@ public final class DataTypeUtil {
             return (List<Object>) rawColumnValue;
         }
         // TODO: Seems a bit violent
-        String rawValue = rawColumnValue.toString();
+        String rawValue = idText(rawColumnValue, source);
         return split(key, rawValue, source);
     }
 
@@ -387,6 +388,33 @@ public final class DataTypeUtil {
             return jsonNumberText((BigDecimal) fieldValue);
         }
         return String.valueOf(fieldValue);
+    }
+
+    /**
+     * The mapped value when the mapping has an entry for this field value,
+     * else the original value: the lookup key is only a key, so a field
+     * without a mapping entry (e.g. a DECIMAL column of a struct that maps
+     * another field) keeps every digit.
+     */
+    public static Object mapValue(ElementMapping mapping, String fieldName, Object fieldValue,
+                                  InputSource source, boolean caseSensitive) {
+        if (mapping.mappingValues().isEmpty()) {
+            return fieldValue;
+        }
+        Object mapped = mapping.mappedValue(fieldName, mappingKey(fieldValue, source), caseSensitive);
+        return mapped != null ? mapped : fieldValue;
+    }
+
+    /**
+     * A field value as the text of an id: a JSON fraction gives the string
+     * the double path produced ("1.5" for 1.50, "100.0" for 1e2), so ids
+     * of an existing dataset do not change with the BigDecimal parsing.
+     */
+    public static String idText(Object value, InputSource source) {
+        if (value instanceof BigDecimal && fromJsonParser(source)) {
+            return jsonNumberText((BigDecimal) value);
+        }
+        return value.toString();
     }
 
     private static BigDecimal parseDecimal(String key, Object rawValue) {

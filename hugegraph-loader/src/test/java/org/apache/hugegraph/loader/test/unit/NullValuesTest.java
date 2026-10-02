@@ -59,6 +59,45 @@ public class NullValuesTest {
         Assert.assertFalse(ElementBuilder.isNullValue(ImmutableSet.of(Double.NaN), 1.0d));
     }
 
+    /** A field without a mapping entry keeps its value; a DECIMAL column of a mapped struct keeps every digit. */
+    @Test
+    public void testMappedStructKeepsUnmappedDecimal() {
+        FileSource json = new FileSource();
+        json.format(FileFormat.JSON);
+        ElementMapping mapping = JsonUtil.fromJson(
+                "{\"id\":\"name\",\"label\":\"person\",\"value_mapping\":{\"city\":{\"1\":\"Beijing\"}}}",
+                VertexMapping.class);
+        Map<String, Object> row = JsonUtil.fromJson(
+                "{\"city\":1,\"amount\":12345678901234567890.10,\"ratio\":1.50}", Map.class);
+        Assert.assertEquals("Beijing", DataTypeUtil.mapValue(mapping, "city", row.get("city"), json, true));
+        Object amount = DataTypeUtil.mapValue(mapping, "amount", row.get("amount"), json, true);
+        Assert.assertEquals(new BigDecimal("12345678901234567890.10"), amount);
+        Assert.assertEquals(new BigDecimal("1.50"), DataTypeUtil.mapValue(mapping, "ratio", row.get("ratio"), json, true));
+        // a mapped fraction is looked up by its double text
+        ElementMapping m2 = JsonUtil.fromJson(
+                "{\"id\":\"name\",\"label\":\"person\",\"value_mapping\":{\"ratio\":{\"1.5\":\"half\"}}}",
+                VertexMapping.class);
+        Assert.assertEquals("half", DataTypeUtil.mapValue(m2, "ratio", row.get("ratio"), json, true));
+        // without any mapping the value is untouched
+        ElementMapping m3 = JsonUtil.fromJson("{\"id\":\"name\",\"label\":\"person\"}", VertexMapping.class);
+        Assert.assertSame(row.get("amount"), DataTypeUtil.mapValue(m3, "amount", row.get("amount"), json, true));
+    }
+
+    /** A string id built from a JSON fraction keeps the text the double path produced. */
+    @Test
+    public void testJsonFractionIdText() {
+        FileSource json = new FileSource();
+        json.format(FileFormat.JSON);
+        FileSource csv = new FileSource();
+        csv.format(FileFormat.CSV);
+        Map<String, Object> row = JsonUtil.fromJson("{\"a\":1.50,\"b\":1e2,\"c\":1e-7,\"d\":7}", Map.class);
+        Assert.assertEquals("1.5", DataTypeUtil.idText(row.get("a"), json));
+        Assert.assertEquals("100.0", DataTypeUtil.idText(row.get("b"), json));
+        Assert.assertEquals("1.0E-7", DataTypeUtil.idText(row.get("c"), json));
+        Assert.assertEquals("7", DataTypeUtil.idText(row.get("d"), json));
+        Assert.assertEquals("1.50", DataTypeUtil.idText(new BigDecimal("1.50"), csv));
+    }
+
     /** A JSON fraction looks up the mapping by the string it always had. */
     @Test
     public void testJsonFractionMappingKey() {

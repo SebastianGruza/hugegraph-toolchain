@@ -169,6 +169,12 @@ public abstract class ElementMapping implements Checkable {
         this.mappingValues = mappingValues;
     }
 
+    /** The mapped value for a field, or null when the mapping has no entry for it. */
+    public Object mappedValue(String fieldName, String rawValue, boolean caseSensitive) {
+        Object mapped = this.mappingValue(fieldName, rawValue, caseSensitive);
+        return mapped == (Object) rawValue ? null : mapped;
+    }
+
     public Object mappingValue(String fieldName, String rawValue,
                                boolean caseSensitive) {
         if (this.mappingValues.isEmpty()) {

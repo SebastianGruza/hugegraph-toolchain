@@ -317,9 +317,8 @@ public abstract class ElementBuilder<GE extends GraphElement> {
         if (this.mapping().mappingValues().isEmpty()) {
             return fieldValue;
         }
-        String fieldStrValue = DataTypeUtil.mappingKey(fieldValue, this.struct.input());
-        return this.mapping().mappingValue(fieldName, fieldStrValue,
-                                           this.headerCaseSensitive());
+        return DataTypeUtil.mapValue(this.mapping(), fieldName, fieldValue, this.struct.input(),
+                                     this.headerCaseSensitive());
     }
 
     protected String mappingField(String fileName) {
@@ -351,7 +350,7 @@ public abstract class ElementBuilder<GE extends GraphElement> {
         }
 
         if (idStrategy.isCustomizeString()) {
-            String id = (String) idValue.toString();
+            String id = DataTypeUtil.idText(idValue, this.struct.input());
             this.checkVertexIdLength(id);
             vertex.id(id);
         } else if (idStrategy.isCustomizeNumber()) {
@@ -837,7 +836,7 @@ public abstract class ElementBuilder<GE extends GraphElement> {
                              String idField, Object idValue) {
         IdStrategy idStrategy = vertexLabel.idStrategy();
         if (idStrategy.isCustomizeString() || idStrategy.isPrimaryKey()) {
-            String id = (String) idValue.toString();
+            String id = DataTypeUtil.idText(idValue, this.struct.input());
             this.checkVertexIdLength(id);
             vertex.id(id);
         } else if (idStrategy.isCustomizeNumber() || idStrategy.isAutomatic()) {
