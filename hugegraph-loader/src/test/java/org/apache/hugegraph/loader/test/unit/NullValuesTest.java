@@ -28,6 +28,7 @@ import org.apache.hugegraph.loader.source.file.FileFormat;
 import org.apache.hugegraph.loader.source.file.FileSource;
 import org.apache.hugegraph.loader.util.DataTypeUtil;
 import org.apache.hugegraph.loader.util.JsonUtil;
+import org.apache.hugegraph.structure.schema.PropertyKey;
 import org.apache.hugegraph.testutil.Assert;
 import org.junit.Test;
 
@@ -81,6 +82,43 @@ public class NullValuesTest {
         // without any mapping the value is untouched
         ElementMapping m3 = JsonUtil.fromJson("{\"id\":\"name\",\"label\":\"person\"}", VertexMapping.class);
         Assert.assertSame(row.get("amount"), DataTypeUtil.mapValue(m3, "amount", row.get("amount"), json, true));
+        // an unmapped non-decimal value next to a value_mapping is the string it was before,
+        // so a JSON boolean still loads into a TEXT key
+        Map<String, Object> row2 = JsonUtil.fromJson("{\"city\":1,\"active\":true}", Map.class);
+        Object active = DataTypeUtil.mapValue(mapping, "active", row2.get("active"), json, true);
+        Assert.assertEquals("true", active);
+        PropertyKey text = new PropertyKey.BuilderImpl("active", null).asText().build();
+        Assert.assertEquals("true", DataTypeUtil.convert(active, text, json));
+    }
+
+    /**
+     * A fractional replacement value of a value_mapping comes from the struct's JSON as a
+     * BigDecimal; on a CSV row it still gives the double text for TEXT and id outputs
+     * ("1.5", as before) and every digit for a DECIMAL output.
+     */
+    @Test
+    public void testMappedFractionOnACsvRow() {
+        FileSource csv = new FileSource();
+        csv.format(FileFormat.CSV);
+        ElementMapping mapping = JsonUtil.fromJson(
+                "{\"id\":\"name\",\"label\":\"person\"," +
+                "\"value_mapping\":{\"ratio\":{\"1\":1.50,\"2\":12345678901234567890.10}}}",
+                VertexMapping.class);
+        Object mapped = DataTypeUtil.mapValue(mapping, "ratio", "1", csv, true);
+        Assert.assertEquals("1.5", DataTypeUtil.idText(mapped, csv));
+        PropertyKey text = new PropertyKey.BuilderImpl("ratio", null).asText().build();
+        Assert.assertEquals("1.5", DataTypeUtil.convert(mapped, text, csv));
+        PropertyKey decimal = new PropertyKey.BuilderImpl("ratio", null).asDecimal().build();
+        Assert.assertEquals(new BigDecimal("1.50"), DataTypeUtil.convert(mapped, decimal, csv));
+        Object big = DataTypeUtil.mapValue(mapping, "ratio", "2", csv, true);
+        Assert.assertEquals(new BigDecimal("12345678901234567890.10"), DataTypeUtil.convert(big, decimal, csv));
+        Assert.assertEquals("1.2345678901234567E19", DataTypeUtil.convert(big, text, csv));
+        // on a JSON row the replacement is handled by the JSON rule as before
+        FileSource json = new FileSource();
+        json.format(FileFormat.JSON);
+        Object mappedJson = DataTypeUtil.mapValue(mapping, "ratio", 1, json, true);
+        Assert.assertEquals(new BigDecimal("1.50"), mappedJson);
+        Assert.assertEquals("1.5", DataTypeUtil.convert(mappedJson, text, json));
     }
 
     /** A string id built from a JSON fraction keeps the text the double path produced. */

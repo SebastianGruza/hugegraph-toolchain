@@ -56,8 +56,13 @@ public class BigDecimalSerializer extends StdSerializer<BigDecimal> {
      */
     public static String exactString(BigDecimal value) {
         int scale = value.scale();
-        if (value.precision() <= DataType.DECIMAL_MAX_PRECISION &&
-            scale >= -DataType.DECIMAL_MAX_SCALE && scale <= DataType.DECIMAL_MAX_SCALE) {
+        // the plain form of a negative scale carries the trailing zeros as
+        // digits (1E+128 has precision 1 but 129 plain digits), and the
+        // server reads an integer token with up to DECIMAL_MAX_PRECISION
+        // digits; a positive scale stays within the scale bound
+        int plainDigits = scale < 0 ? value.precision() - scale : value.precision();
+        if (plainDigits <= DataType.DECIMAL_MAX_PRECISION &&
+            scale <= DataType.DECIMAL_MAX_SCALE) {
             return value.toPlainString();
         }
         return value.toString();

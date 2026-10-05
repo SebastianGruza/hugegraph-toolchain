@@ -70,6 +70,10 @@ public final class DataTypeUtil {
 
         String key = propertyKey.name();
         DataType dataType = propertyKey.dataType();
+        if (value instanceof MappedDecimal) {
+            // the struct's replacement: exact for DECIMAL, the double text otherwise
+            value = dataType.isDecimal() ? ((MappedDecimal) value).value : value.toString();
+        }
         Cardinality cardinality = propertyKey.cardinality();
         switch (cardinality) {
             case SINGLE:
@@ -402,7 +406,33 @@ public final class DataTypeUtil {
             return fieldValue;
         }
         Object mapped = mapping.mappedValue(fieldName, mappingKey(fieldValue, source), caseSensitive);
-        return mapped != null ? mapped : fieldValue;
+        if (mapped != null) {
+            // a fractional replacement value comes from the struct's JSON as
+            // a BigDecimal: on a non-JSON row source it is marked so that a
+            // TEXT or id output gets the double text the struct gave before
+            // ("1.5"), while a DECIMAL output keeps every digit
+            return mapped instanceof BigDecimal && !fromJsonParser(source)
+                   ? new MappedDecimal((BigDecimal) mapped) : mapped;
+        }
+        // unmapped: the string the loader passed on before (a JSON boolean or a
+        // JDBC timestamp next to a value_mapping still loads into a TEXT key);
+        // only a BigDecimal keeps its object, so a DECIMAL column keeps every digit
+        return fieldValue instanceof BigDecimal ? fieldValue : String.valueOf(fieldValue);
+    }
+
+    /** A fractional value_mapping replacement on a non-JSON row source, see {@link #mapValue}. */
+    public static final class MappedDecimal {
+
+        public final BigDecimal value;
+
+        public MappedDecimal(BigDecimal value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return jsonNumberText(this.value);
+        }
     }
 
     /**
@@ -414,7 +444,7 @@ public final class DataTypeUtil {
         if (value instanceof BigDecimal && fromJsonParser(source)) {
             return jsonNumberText((BigDecimal) value);
         }
-        return value.toString();
+        return value.toString(); // a MappedDecimal prints its double text
     }
 
     private static BigDecimal parseDecimal(String key, Object rawValue) {

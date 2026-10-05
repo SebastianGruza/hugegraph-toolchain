@@ -137,6 +137,12 @@ public class DecimalDataTypeTest extends BaseUnitTest {
         Assert.assertEquals("1E+999999999",
                             BigDecimalSerializer.exactString(new BigDecimal("1E+999999999")));
         Assert.assertEquals("1E-129", BigDecimalSerializer.exactString(new BigDecimal("1E-129")));
+        // the plain expansion of 1E+128 has 129 digits, above the server's precision cap
+        Assert.assertEquals("1E+128", BigDecimalSerializer.exactString(new BigDecimal("1E+128")));
+        String plain127 = BigDecimalSerializer.exactString(new BigDecimal("1E+127"));
+        Assert.assertEquals(128, plain127.length());
+        Assert.assertTrue(plain127.startsWith("1000"));
+        Assert.assertEquals("-1E+128", BigDecimalSerializer.exactString(new BigDecimal("-1E+128")));
         Assert.assertEquals("{\"v\":1E+999999999}",
                             JsonUtil.toJson(ImmutableMap.of("v", new BigDecimal("1E+999999999"))));
     }
